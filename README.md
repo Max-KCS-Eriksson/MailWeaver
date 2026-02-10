@@ -1,4 +1,4 @@
-# Mailinator
+# MailWeaver
 
 ## Settings
 
