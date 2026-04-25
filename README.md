@@ -1,122 +1,157 @@
 # MailWeaver
 
-## Settings
+MailWeaver is a Spring Boot–based CLI application that automates the creation and delivery of personalized emails from structured CSV input.
 
-User settings are specified in `src/main/resources/email.properties`.
-First create above file in the mentioned path, and fill in below properties.
+It was built to solve a practical problem: sending customized outreach emails at scale without risking formatting mistakes, missing attachments, or inconsistent messaging.
 
-### Email
+The application separates parsing, formatting, and delivery concerns to remain maintainable and easy to extend.
 
-##### Login
+## Why
+
+When sending many similar emails (e.g., internship applications or professional outreach), manual handling quickly becomes:
+
+- Error-prone
+- Time-consuming
+- Inconsistent
+- Risky (missed attachments, wrong names, incorrect company references)
+
+MailWeaver removes that friction by:
+
+- Structuring recipient data
+- Injecting contextual placeholders
+- Attaching required files automatically
+- Sending via configured SMTP
+
+It turns repetitive manual work into a deterministic, repeatable workflow.
+
+## Tech Stack
+
+- Java 21
+- Spring Boot 3
+- Maven
+- Jakarta Mail (SMTP)
+- OpenCSV
+
+## Requirements
+
+- Java 21
+- Maven 3.9+
+- Access to an SMTP account (e.g. Gmail with App Password)
+
+## Usage
+
+### Run the Application
+
+```bash
+mvn clean spring-boot:run
+```
+
+### Configuration
+
+Create the file:
+
+```
+src/main/resources/email.properties
+```
+
+Populate it with the required properties below.
+
+#### 1. Email Credentials
 
 ```
 EMAIL_SENDER=<your_email_address>
-EMAIL_PASSWORD=<your_password>
+EMAIL_PASSWORD=<your_app_password>
 ```
 
-**NOTE**: Currently only working for Gmail accounts using
-[generated application passwords](#gmail-application-password).
+For Gmail:
 
-###### Gmail application password
+1. Enable 2-Step Verification
+2. Use a generated App Password value as `EMAIL_PASSWORD`
 
-1. Log in and confirm 2-Step Verification is enabled
-2. Go to: https://myaccount.google.com/apppasswords
-3. Enter a name of your liking for the application
-4. Click Generate
-5. Use the shown generated password as the value for the `EMAIL_PASSWORD` property
-
-##### Draft
-
-The specified email draft will be sent to all [listed recipients](#recipients).
+#### 2. Email Draft Template
 
 ```
-EMAIL_DRAFT=<path/to/file>
+EMAIL_DRAFT=<path/to/email-draft.txt>
 ```
 
-##### File attachment
-
-A File can be attached to sent email by filling in below property with a path relative
-to this application root directory.
-This property can be completely omitted if not attachment is to be sent.
-
-```
-EMAIL_ATTACHMENT=<path/to/file>
-```
-
-##### Recipients
-
-Specify the path to the CSV file containing the desired email recipients as below.
-See [CSV structure](#recipient-list).
-
-```
-EMAIL_RECIPIENT_LIST=<path/to/file>
-```
-
-##### CSV separator
-
-This property can be completely omitted if "`;`" is used as the CSV separator character.
-If another character is wished to be used as a column separator, the below setting is to
-be specified.
-
-```
-EMAIL_RECIPIENT_LIST_SEPARATOR=<character>
-```
-
-## Email Draft
-
-Below listed placeholders will be processed according to the column values in the
-[recipient list](#recipients).
-
-### Placeholder tags
+The draft supports placeholder tokens:
 
 - `${company}`
 - `${contactPerson}`
 - `${optionalParagraph}`
 
-##### Example draft
+##### Example:
 
 ```
-Hello ${contactPerson}!
+Hello ${contactPerson},
 
-Nice to meet you at ${company}!
-${optionalParagraph}.
+I’m reaching out regarding opportunities at ${company}.
+${optionalParagraph}
 
 Best regards,
 Jane Doe
 ```
 
-## Recipient list
+Each placeholder is dynamically replaced using values from the CSV row.
 
-### Column headers
+#### 3. Recipient List (CSV)
 
-The CSV file is expected to contain column headers as below.
+```
+EMAIL_RECIPIENT_LIST=<path/to/recipients.csv>
+```
+
+Expected column headers:
 
 ```
 Company;Contact person;Contact email;Optional paragraph
 ```
 
-### Column values
+Each row generates one email.
 
-An email will be sent for each row in the CSV file to the recipient specified in the
-`Contact email` column.
+If the optional paragraph is omitted for a row, the separator must still terminate the line.
 
-[Placeholders](#email-draft) in the [email draft](#draft) are replaced for each email
-according to the [columns](#column-headers) like described below.
-
-- `${company}` is replaced with `Company`
-- `${contactPerson}` is replaced with `Contact person`
-- `${optionalParagraph}` is replaced with `Optional paragraph` if present.
-
-If the `Optional paragraph` is omitted a trailing [CSV separator](#csv-separator) is
-required on that row.
-
-##### Example columns
+##### Example:
 
 ```
 Company;Contact person;Contact email;Optional paragraph
-Foo;Jane Smith;jane.smith@foo.io;Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-Bar;John Doe;john.doe@bar.io;
+Foo;Jane Smith;jane@foo.io;It was great meeting your team.
+Bar;John Doe;john@bar.io;
 ```
 
-Note that the last row omits the optional paragraph and therefore ends the row with the
-[CSV separator](#csv-separator) while the first row doesn't.
+#### 4. Optional File Attachment
+
+```
+EMAIL_ATTACHMENT=<path/to/file>
+```
+
+This property can be omitted if no attachment is required.
+
+#### 5. Optional CSV Separator
+
+Default separator is "`;`"
+
+To override:
+
+```
+EMAIL_RECIPIENT_LIST_SEPARATOR=<character>
+```
+
+## Architecture Overview
+
+The system is structured into clearly separated components:
+
+- CSV Parsing Layer — structured input extraction
+- Formatting Layer — dynamic placeholder replacement
+- Mail Service Layer — SMTP communication and attachment handling
+- CLI Orchestration Layer — execution flow via Spring Boot's `CommandLineRunner`
+
+This modular structure keeps responsibilities explicit and reduces coupling between
+formatting logic and delivery logic.
+
+## Potential Improvements
+
+- Daily maximum send limit to reduce risk of spam flagging
+- Retry and failure handling
+- Structured logging
+- HTML email support
+- Containerization
